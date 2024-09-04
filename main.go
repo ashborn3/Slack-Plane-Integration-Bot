@@ -32,7 +32,7 @@ type IssuesResponse struct {
 	NextCursor      string      `json:"next_cursor"`
 	PrevCursor      string      `json:"prev_cursor"`
 	NextPageResults bool        `json:"next_page_results"`
-	PrevPageResults bool        `json:"prev_page_results"`Response
+	PrevPageResults bool        `json:"prev_page_results"`
 	Count           int         `json:"count"`
 	TotalPages      int         `json:"total_pages"`
 	TotalResults    int         `json:"total_results"`
@@ -83,7 +83,7 @@ func main() {
 
 	slackClient = slack.New(os.Getenv("SLACK_TOKEN"))
 
-	fetchIssues(fetchProjects())
+	fmt.Println(fetchIssues(fetchProjects()))
 
 }
 
@@ -131,14 +131,16 @@ func fetchProjects() []string {
 	return projectId
 }
 
-func fetchIssues(projectIds []string) {
+func fetchIssues(projectIds []string) []IssuesResponse {
+	var issues []IssuesResponse
+
 	for _, projectId := range projectIds {
 		url := fmt.Sprintf("https://api.plane.so/api/v1/workspaces/%s/projects/%s/issues/", slug, projectId)
 
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Fatalf("Error creating request: %v", err)
-			return
+			return nil
 		}
 
 		req.Header.Add("x-api-key", planeToken)
@@ -146,24 +148,24 @@ func fetchIssues(projectIds []string) {
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Fatalf("Error sending request: %v", err)
-			return
+			return nil
 		}
 
 		defer res.Body.Close()
 		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			log.Fatalf("Error reading response body: %v", err)
-			return
+			return nil
 		}
 
-		// Write response to JSON file
-		fileName := fmt.Sprintf("project_%s_issues.json", projectId)
-		err = os.WriteFile(fileName, body, 0644)
+		var issueData IssuesResponse
+		err = json.Unmarshal(body, &issueData)
 		if err != nil {
-			log.Fatalf("Error writing response to file: %v", err)
-			return
+			log.Fatalf("Error unmarshaling response body: %v", err)
+			return nil
 		}
-
-		fmt.Printf("Issues for project %s fetched and written to %s\n", projectId, fileName)
+		issues = append(issues, issueData)
 	}
+
+	return issues
 }
