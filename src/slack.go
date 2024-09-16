@@ -25,7 +25,7 @@ func HandleSlashCommand(cmd slack.SlashCommand, slackClient *slack.Client) {
 		if cmd.Command == "/issueupdate" {
 			parts := strings.SplitN(cmd.Text, " ", 3)
 			if len(parts) != 3 {
-				response = "Invalid input. Please provide project ID, state ID, and state name."
+				response = "Invalid input. Please provide project ID, issue ID and state name."
 			} else {
 				err := SetIssueState(parts[0], parts[1], parts[2])
 				if err != nil {

@@ -1,16 +1,26 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
-	"strings"
 )
 
 type State struct {
 	Name string `json:"name"`
+}
+
+type Result struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type Response struct {
+	Results []Result `json:"results"`
 }
 
 func FetchStateName(projectID, stateID string) (string, error) {
@@ -43,12 +53,54 @@ func FetchStateName(projectID, stateID string) (string, error) {
 	return stateResponse.Name, nil
 }
 
-func SetIssueState(projectID, stateID, stateName string) error {
-	url := fmt.Sprintf("https://api.plane.so/api/v1/workspaces/%s/projects/%s/states/%s/", slug, projectID, stateID)
+func getStateIDFromString(projectID, stateName string) (string, error) {
+	url := fmt.Sprintf("https://api.plane.so/api/v1/workspaces/%s/projects/%s/states/", slug, projectID)
 
-	payload := strings.NewReader(fmt.Sprintf("{\n  \"name\": \"%s\"\n}", stateName))
+	req, _ := http.NewRequest("GET", url, nil)
 
-	req, _ := http.NewRequest("PATCH", url, payload)
+	req.Header.Add("x-api-key", planeToken)
+
+	res, _ := http.DefaultClient.Do(req)
+
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	var resp Response
+	err := json.Unmarshal(body, &resp)
+	if err != nil {
+		return "", err
+	}
+
+	for _, result := range resp.Results {
+		if result.Name == stateName {
+			return result.ID, nil
+		}
+	}
+
+	return "", fmt.Errorf("ID for name %s not found", stateName)
+}
+
+func SetIssueState(projectID, issueID, stateName string) error {
+	url := fmt.Sprintf("https://api.plane.so/api/v1/workspaces/%s/projects/%s/issues/%s/", slug, projectID, issueID)
+
+	stateID, err := getStateIDFromString(projectID, stateName)
+	if err != nil {
+		return err
+	}
+
+	log.Print(stateID)
+
+	payload := map[string]string{
+		"state": stateID,
+	}
+
+	// Marshal the map to JSON
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req, _ := http.NewRequest("PATCH", url, bytes.NewReader(jsonData))
 
 	req.Header.Add("x-api-key", planeToken)
 	req.Header.Add("Content-Type", "application/json")
