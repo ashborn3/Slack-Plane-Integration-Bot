@@ -24,7 +24,7 @@ func AddCSVEntry(entry []string) error {
 }
 
 func DeleteCSVEntry(planeID string) error {
-	file, err := os.OpenFile("user_mapping.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile("user_mapping.csv", os.O_RDONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func DeleteCSVEntry(planeID string) error {
 		return fmt.Errorf("row with '%s' not found in the first column", planeID)
 	}
 
-	file, err = os.Create("temp_user_mapping.csv")
+	file, err = os.OpenFile("temp_user_mapping.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("unable to open file for writing: %v", err)
 	}
@@ -61,7 +61,6 @@ func DeleteCSVEntry(planeID string) error {
 		return fmt.Errorf("unable to write to file: %v", err)
 	}
 	writer.Flush()
-
 	os.Rename("temp_user_mapping.csv", "user_mapping.csv")
 	return nil
 }
@@ -70,20 +69,20 @@ func ManageUserMapping(text string, slackID string) error {
 	textSlice := strings.Split(text, " ")
 	switch textSlice[0] {
 	case "delete":
-		if len(textSlice) < 2 {
+		if len(textSlice) == 2 {
 			return DeleteCSVEntry(textSlice[1])
 		} else {
 			return fmt.Errorf("invalid argument count for delete")
 		}
 	case "add":
-		if len(textSlice) < 2 {
+		if len(textSlice) == 2 {
 			entry := []string{textSlice[1], slackID}
 			return AddCSVEntry(entry)
 		}
 	default:
 		return fmt.Errorf("%s is not supported", textSlice[0])
 	}
-	return nil
+	return fmt.Errorf("this should not have happened")
 }
 
 func LoadUserMapping(filePath string) (map[string]string, error) {
