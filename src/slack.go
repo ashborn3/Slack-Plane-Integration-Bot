@@ -15,7 +15,7 @@ import (
 func HandleSlashCommand(cmd slack.SlashCommand, slackClient *slack.Client) {
 	response := fmt.Sprintf("You invoked the slash command: %s with text: %s", cmd.Command, cmd.Text)
 	if cmd.Command == "/register" {
-		err := AddUserMapping(cmd.Text)
+		err := ManageUserMapping(cmd.Text, cmd.UserID)
 		if err != nil {
 			response = fmt.Sprintf("Error adding user mapping: %v", err)
 		} else {

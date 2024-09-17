@@ -14,12 +14,8 @@ func AddCSVEntry(entry []string) error {
 		return err
 	}
 	defer file.Close()
-
-	// Create a CSV writer
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
-
-	// Write the entry to the CSV file
 	if err := writer.Write(entry); err != nil {
 		return err
 	}
@@ -27,18 +23,67 @@ func AddCSVEntry(entry []string) error {
 	return nil
 }
 
-func AddUserMapping(input string) error {
-	// Split the input string into two parts
-	parts := strings.SplitN(input, " ", 2)
-	if len(parts) != 2 {
-		return fmt.Errorf("input must contain exactly two space-separated strings")
+func DeleteCSVEntry(planeID string) error {
+	file, err := os.OpenFile("user_mapping.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return fmt.Errorf("unable to read CSV file: %v", err)
 	}
 
-	// Create the entry to be added
-	entry := []string{parts[0], parts[1]}
+	var updatedRecords [][]string
+	found := false
+	for _, row := range records {
+		if row[0] != planeID {
+			updatedRecords = append(updatedRecords, row)
+		} else {
+			found = true
+		}
+	}
+	if !found {
+		return fmt.Errorf("row with '%s' not found in the first column", planeID)
+	}
 
-	// Add the entry to the CSV file
-	return AddCSVEntry(entry)
+	file, err = os.Create("temp_user_mapping.csv")
+	if err != nil {
+		return fmt.Errorf("unable to open file for writing: %v", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	err = writer.WriteAll(updatedRecords)
+	if err != nil {
+		return fmt.Errorf("unable to write to file: %v", err)
+	}
+	writer.Flush()
+
+	os.Rename("temp_user_mapping.csv", "user_mapping.csv")
+	return nil
+}
+
+func ManageUserMapping(text string, slackID string) error {
+	textSlice := strings.Split(text, " ")
+	switch textSlice[0] {
+	case "delete":
+		if len(textSlice) < 2 {
+			return DeleteCSVEntry(textSlice[1])
+		} else {
+			return fmt.Errorf("invalid argument count for delete")
+		}
+	case "add":
+		if len(textSlice) < 2 {
+			entry := []string{textSlice[1], slackID}
+			return AddCSVEntry(entry)
+		}
+	default:
+		return fmt.Errorf("%s is not supported", textSlice[0])
+	}
+	return nil
 }
 
 func LoadUserMapping(filePath string) (map[string]string, error) {
