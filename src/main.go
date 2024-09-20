@@ -43,6 +43,11 @@ func main() {
 		log.Fatalf("Error setting up cron job: %v", err)
 		return
 	}
+	_, err = c.AddFunc("0 9 * * *", SendDailyOverview) // Run at 9:00 AM IST every day
+	if err != nil {
+		log.Fatalf("Error setting up cron job: %v", err)
+		return
+	}
 	c.Start()
 
 	// Run the Socketmode client
