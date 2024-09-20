@@ -21,6 +21,7 @@ type Issue struct {
 	State           string   `json:"state"`
 	DescriptionHTML string   `json:"description_html"`
 	Assignees       []string `json:"assignees"`
+	DueDate         string   `json:"target_date"`
 }
 
 func FetchIssues(projectIds []string) []IssuesResponse {
@@ -62,28 +63,26 @@ func FetchIssues(projectIds []string) []IssuesResponse {
 	return issues
 }
 
-func CategorizeIssues(issues []IssuesResponse) (openIssues, inProgressIssues, closedIssues, doneIssues, todoIssues []string) {
+func CategorizeIssues(issues []IssuesResponse) map[string][]Issue {
+	stateMap, err := CreateStateIDToNameMap(FetchProjects())
+
+	result := make(map[string][]Issue)
+
+	if err != nil {
+		log.Fatalf("Error creating state map: %v", err)
+		return nil
+	}
+
 	for _, issue := range issues {
 		for _, issueData := range issue.Results {
-			stateName, err := FetchStateName(issueData.Project, issueData.State)
-			fmt.Print("State Name: ", stateName, "\n")
-			if err != nil {
-				log.Printf("Error fetching state name: %v", err)
+			stateName, exists := stateMap[issueData.State]
+			if !exists {
+				log.Printf("State ID %s not found in state map", issueData.State)
 				continue
 			}
-			switch stateName {
-			case "Backlog":
-				openIssues = append(openIssues, issueData.Name)
-			case "Todo":
-				todoIssues = append(todoIssues, issueData.Name)
-			case "In Progress":
-				inProgressIssues = append(inProgressIssues, issueData.Name)
-			case "Cancelled":
-				closedIssues = append(closedIssues, issueData.Name)
-			case "Done":
-				doneIssues = append(doneIssues, issueData.Name)
-			}
+			issueData.State = stateName
+			result[stateName] = append(result[stateName], issueData)
 		}
 	}
-	return
+	return result
 }
