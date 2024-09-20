@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -23,20 +24,30 @@ func HandleSlashCommand(cmd slack.SlashCommand, slackClient *slack.Client) {
 		}
 	} else {
 		if cmd.Command == "/issueupdate" {
-			parts := strings.SplitN(cmd.Text, " ", 3)
-			if len(parts) != 3 {
-				response = "Invalid input. Please provide project ID, issue ID and state name."
+			parts := strings.SplitN(cmd.Text, " ", 2)
+			if len(parts) != 2 {
+				response = "Invalid input. Please provide issue ID and state name."
 			} else {
-				err := SetIssueState(parts[0], parts[1], parts[2])
+				pID, err := PreSetIssueState(parts[0])
 				if err != nil {
 					response = fmt.Sprintf("Error updating issue state: %v", err)
 				} else {
-					response = "Issue state updated successfully"
+					err = SetIssueState(pID, parts[0], parts[1])
+					if err != nil {
+						response = fmt.Sprintf("Error updating issue state: %v", err)
+					} else {
+						response = "Issue state updated successfully for issue ID: " + parts[0]
+					}
 				}
 			}
 		}
 	}
-	_, _, err := slackClient.PostMessage(cmd.ChannelID, slack.MsgOptionText(response, false))
+	// Send the response as an ephemeral message
+	_, _, err := slackClient.PostMessage(
+		cmd.ChannelID,
+		slack.MsgOptionText(response, false),
+		slack.MsgOptionResponseURL(cmd.ResponseURL, slack.ResponseTypeEphemeral),
+	)
 	if err != nil {
 		log.Printf("Error responding to slash command: %v", err)
 	}
@@ -74,10 +85,19 @@ func StartSocketMode(ctx context.Context, slackClient *slack.Client, sockClient 
 func SendIssueDetailsToAssignees(issues []IssuesResponse) int {
 	var message string
 	userMapping, _ := LoadUserMapping("user_mapping.csv")
-
 	for _, issue := range issues {
 		for _, issueData := range issue.Results {
-			message = fmt.Sprintf("Issue: %s\nPriority: %s\nLabels: %s\nLink: %s\nDescription: %s\n", issueData.Name, issueData.Priority, issueData.Labels, fmt.Sprintf("https://app.plane.so/%s/projects/%s/issues/%s", slug, issueData.Project, issueData.ID), issueData.DescriptionHTML[3:len(issueData.DescriptionHTML)-4])
+
+			message = fmt.Sprintf(
+				"Issue: %s\nIssue ID: %s\nDue Date: %s\nPriority: %s\nLink: <%s|Plane>\nDescription: %s\n",
+				issueData.Name,
+				issueData.ID,
+				issueData.DueDate,
+				issueData.Priority,
+				fmt.Sprintf("https://app.plane.so/%s/projects/%s/issues/%s", slug, issueData.Project, issueData.ID),
+				issueData.DescriptionHTML[3:len(issueData.DescriptionHTML)-4],
+			)
+
 			for _, assignee := range issueData.Assignees {
 				slackUserID, exists := userMapping[assignee]
 				if !exists {
@@ -113,31 +133,15 @@ func SendDailyOverview() {
 		return
 	}
 
-	openIssues, inProgressIssues, closedIssues, doneIssues, todoIssues := CategorizeIssues(issues)
+	categorizedIssues := CategorizeIssues(issues)
 
-	fmt.Print("All Issues: ", openIssues, inProgressIssues, closedIssues, doneIssues, todoIssues, "\n")
-
-	// Create the summary message
-	message := "Daily Overview of Issues:\n\n"
-	message += "*Open Issues:*\n"
-	for _, issue := range openIssues {
-		message += issue + "\n"
-	}
-	message += "\n*In Progress Issues:*\n"
-	for _, issue := range inProgressIssues {
-		message += issue + "\n"
-	}
-	message += "\n*Closed Issues:*\n"
-	for _, issue := range closedIssues {
-		message += issue + "\n"
-	}
-	message += "\n*Done Issues:*\n"
-	for _, issue := range doneIssues {
-		message += issue + "\n"
-	}
-	message += "\n*Todo Issues:*\n"
-	for _, issue := range todoIssues {
-		message += issue + "\n"
+	var message string = fmt.Sprintf("*Here's the daily overview of issues for %s:*\n\n", time.Now().Format("2006-01-02"))
+	for state, issues := range categorizedIssues {
+		message += fmt.Sprintf("*%s*\n", state)
+		for _, issue := range issues {
+			message += fmt.Sprintf("• <%s|%s>\n", fmt.Sprintf("https://app.plane.so/%s/projects/%s/issues/%s", slug, issue.Project, issue.ID), issue.Name)
+		}
+		message += "\n"
 	}
 
 	channelID := os.Getenv("SLACK_OVERVIEW_CHANNEL_ID")
