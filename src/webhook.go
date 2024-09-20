@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 )
 
 func StartWebhookReciever() {
@@ -18,8 +18,7 @@ func StartWebhookReciever() {
 		}
 
 		// Print the request body
-		fmt.Println(string(body))
-
+		os.WriteFile("webhook.log", body, 0644)
 		// Respond with a 200 OK status
 		w.WriteHeader(http.StatusOK)
 	})
