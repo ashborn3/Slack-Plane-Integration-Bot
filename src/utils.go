@@ -23,6 +23,37 @@ type Response struct {
 	Results []Result `json:"results"`
 }
 
+func CreateStateIDToNameMap(projectIDs []string) (map[string]string, error) {
+
+	idToNameMap := make(map[string]string)
+	var tempResult Response
+
+	for _, projectID := range projectIDs {
+		url := fmt.Sprintf("https://api.plane.so/api/v1/workspaces/%s/projects/%s/states/", slug, projectID)
+
+		req, _ := http.NewRequest("GET", url, nil)
+
+		req.Header.Add("x-api-key", planeToken)
+
+		res, _ := http.DefaultClient.Do(req)
+
+		defer res.Body.Close()
+		body, _ := io.ReadAll(res.Body)
+
+		err := json.Unmarshal(body, &tempResult)
+		if err != nil {
+			log.Print(err)
+			continue
+		}
+
+		for _, res := range tempResult.Results {
+			idToNameMap[res.ID] = res.Name
+		}
+	}
+
+	return idToNameMap, nil
+}
+
 func FetchStateName(projectID, stateID string) (string, error) {
 	url := fmt.Sprintf("https://api.plane.so/api/v1/workspaces/%s/projects/%s/states/%s/", os.Getenv("SLUG"), projectID, stateID)
 
@@ -78,6 +109,19 @@ func getStateIDFromString(projectID, stateName string) (string, error) {
 	}
 
 	return "", fmt.Errorf("ID for name %s not found", stateName)
+}
+
+func PreSetIssueState(issueID string) (string, error) {
+	issueResps := FetchIssues(FetchProjects())
+
+	for _, issueResp := range issueResps {
+		for _, issue := range issueResp.Results {
+			if issue.ID == issueID {
+				return issue.Project, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("Issue ID %s not found", issueID)
 }
 
 func SetIssueState(projectID, issueID, stateName string) error {
