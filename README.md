@@ -3,7 +3,6 @@
 This project is a Slack bot designed to integrate with the Plane API to fetch project and issue data, and send daily overviews and issue details to Slack channels and users.
 
 ## Table of Contents
-
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -21,7 +20,17 @@ This project is a Slack bot designed to integrate with the Plane API to fetch pr
     go mod tidy
     ```
 
-3. Build the project:
+3. Create an .env file with the following key value pairs:  
+    ```
+    SLACK_TOKEN=<Your Slack Token>  
+    SLACK_SOCK_TOKEN=<Your Slack Socket Token>  
+    PLANE_TOKEN=<Your Plane Token>  
+    SLUG=<Your Workspace Slug>  
+    SLACK_OVERVIEW_CHANNEL_ID=<Channel ID to Send Daily Overview in>  
+    ```
+
+
+4. Build the project:
     ```sh
     make build
     ```
