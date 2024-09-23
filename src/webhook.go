@@ -17,11 +17,12 @@ func StartWebhookReciever() {
 			return
 		}
 
-		// Print the request body
+		// Log the request body
 		os.WriteFile("webhook.log", body, 0644)
 		// Respond with a 200 OK status
 		w.WriteHeader(http.StatusOK)
 	})
 
+	log.Println("Starting webhook reciever on port 3000")
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

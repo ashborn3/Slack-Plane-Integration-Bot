@@ -34,8 +34,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go StartSocketMode(ctx, slackClient, socketClient)
 	go StartWebhookReciever()
+	go StartSocketMode(ctx, slackClient, socketClient)
 
 	// Set up the cron job
 	c := cron.New(cron.WithLocation(time.FixedZone("IST", 5*60*60+30*60))) // IST is UTC+5:30
