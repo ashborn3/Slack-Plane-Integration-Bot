@@ -32,7 +32,7 @@ func FetchIssues(projectIds []string) []IssuesResponse {
 
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			log.Fatalf("Error creating request: %v", err)
+			log.Printf("Error creating request: %v", err)
 			return nil
 		}
 
@@ -40,21 +40,21 @@ func FetchIssues(projectIds []string) []IssuesResponse {
 
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
-			log.Fatalf("Error sending request: %v", err)
+			log.Printf("Error sending request: %v", err)
 			return nil
 		}
 
 		defer res.Body.Close()
 		body, err := io.ReadAll(res.Body)
 		if err != nil {
-			log.Fatalf("Error reading response body: %v", err)
+			log.Printf("Error reading response body: %v", err)
 			return nil
 		}
 
 		var issueData IssuesResponse
 		err = json.Unmarshal(body, &issueData)
 		if err != nil {
-			log.Fatalf("Error unmarshaling response body: %v", err)
+			log.Printf("Error unmarshaling response body: %v", err)
 			return nil
 		}
 		issues = append(issues, issueData)

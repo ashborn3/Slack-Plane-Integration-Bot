@@ -99,7 +99,7 @@ func LoadUserMapping(filePath string) (map[string]string, error) {
 	}
 
 	userMapping := make(map[string]string)
-	for _, record := range records[1:] { // Skip header row
+	for _, record := range records {
 		planeUUID := record[0]
 		slackUserID := record[1]
 		userMapping[planeUUID] = slackUserID
